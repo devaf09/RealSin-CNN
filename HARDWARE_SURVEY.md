@@ -1,0 +1,51 @@
+# ハードウェア候補の調査（2026-10-15）
+
+Sin-CNN を少ない部品点数で、速く処理・学習できそうな市販の部品やモジュールを調べた。検証はしていない（ユーザー指示: 今の段階では調査のみ）。
+数値は各社の公開ページから拾ったもので、「推定」と書いたものは私の見積もり。
+
+## 前提: Sin-CNN を回路にすると何が要るか（NOTES.md の実験A00〜A03 より）
+1 層 = **位相を回す（ミキサー＋位相を回した発振信号）→ 全域通過フィルタ 1 段（板の間隔 z=2 なら）**。これを 8 層、最後に**バンドパス＋2 乗検波**を 4〜16 本。
+- 学習する値は各層の発振信号の振幅 A と位相 φ（区画ごと）で、4 bit で足りる。
+- 必要な「部品の種類」は 4 つだけ: **発振信号を作る部品**、**掛け算（ミキサー）**、**全域通過フィルタ**、**検出器**。
+- 速さは「1 文字列 = 信号 1 周期（L 標本）」で決まる。L=512 なら、帯域 20 MHz で約 26 µs/文字列（約 4 万/秒）、1 GHz で約 0.5 µs（約 200 万/秒）（推定）。CPU 実測は約 1600/秒（標準構成、2 スレッド）。
+
+## 比較表
+
+| 候補 | 何か | Sin-CNN のどこを担うか | 速さ（推定） | 部品点数 | 学習 | 入手性・価格 | 評価 |
+|---|---|---|---|---|---|---|---|
+| **Okika OK2902A**（FPAA） | CAB 56 個・浮遊ゲート・MSP430 内蔵 | 全部（8 層＋検出器）を 1 チップで | 音声帯なら 1 文字列数十 ms（CPU より遅い） | 1 チップ＋ボード | PC で学習→書き込み、または揺らして勾配推定（SPSA） | 開発ボードあり、価格は要問い合わせ | **原理実証の本命**。µW 級の低消費電力 |
+| Anadigm AN231E04（FPAA） | CAB 4 個のスイッチトキャパシタ方式 | 1 層ぶん程度 | 低速 | 1 チップ | 書き込み | 市販 | 規模不足。1 層の試作向け |
+| Aspinity AML100（アナログ AI チップ） | CAB 配列・不揮発メモリ・センサー前段向け。20 µA 未満 | 検出器（フィルタ＋振幅検出）側 | 低速（音声・振動向け） | 1 チップ | 同社のツール | 評価ボードの入手状況は不明 | 用途が近いが中身が非公開。様子見 |
+| THE ANALOG THING / LUCIDAC（anabrid のアナログ計算機） | 積分器 5／8 個、掛け算器 2／4 個。LUCIDAC はデジタルから配線を組み替え可能 | 1 層の動作確認程度 | 低速 | 1 台 | 手動／PC から設定 | 市販（教育・研究向け） | 微分方程式向けの構成で、Sin-CNN の信号の流れには不向き |
+| **AD9959**（4 チャンネル DDS） | 500 MS/s、位相 14 bit、振幅 10 bit、16 段の FSK/PSK/ASK 切替、約 63 ドル（1000 個時） | 入力の FSK と、各層の「位相を回した発振信号」を 1 チップで 4 本 | 帯域 数十〜100 MHz 級 | 2 個で 8 層ぶん | A, φ を SPI で直接書き換え。実機での学習ループが組みやすい | 市販・安価 | **RF 版の核になる部品** |
+| RF 部品の組み合わせ（ミキサー・LC 全域通過・バンドパス・RMS 検波器） | 無線機の部品そのもの | ミキサー、回折（z=2 なら LC 1 段）、検出 | 数十 MHz〜GHz | 1 層あたり 3〜4 個（推定） | DDS 側で値を変える | 市販・安価 | AD9959 と組めば**少部品・高速**。基板設計が必要 |
+| SAW 分散遅延線 | 弾性表面波で周波数ごとに遅れを変える | 回折（強い回折 z=64 向け） | GHz 帯 | 1 層 1 個 | 固定 | 汎用品は少なく特注が多い（調べた例は製造終了） | z=2 で足りると分かったので不要に近い |
+| **Red Pitaya STEMlab 125-14** | 14 bit・125 MS/s の ADC/DAC 各 2 本＋Zynq 7010 FPGA | 発振信号の生成と検出をデジタルで、外付けのアナログ部品と組む。またはそのまま FPGA で計算 | 帯域 60 MHz まで | 1 ボード＋外付け | PC と連携しやすい（Linux 搭載） | 市販・比較的安価 | **一番手軽な試作台**。1〜2 層の RF 版を組んで確かめるのに向く |
+| AMD RFSoC 4x2 | 5 GS/s ADC×4、9.85 GS/s DAC×2、DSP 4272 個 | GHz 帯の発振信号・検出。FPGA だけで高速に全部計算することも可能 | GHz 帯 | 1 ボード | PYNQ（Python）から制御 | 学術向け 2,499 ドル（大学関係者のみ） | 高速版の制御装置。光と組む最高速案の要 |
+| 空間光変調器（LCOS SLM）＋レンズ＋カメラ | 液晶で光の位相を画素ごとに変える（例: 1024×1024、書き換え 1.4 kHz） | Sin-CNN の元の「光の模型」そのもの。板＝SLM、回折＝空間、レンズ＝レンズ | 光は一瞬だが、入力の書き換えとカメラで 1 kHz 前後 | SLM 1〜数枚 | 書き換えが遅いので学習は遅い | 高価（要見積もり） | 本来の姿だが、速さは入出力で頭打ち |
+| 光ファイバ＋電気光学位相変調器（時間領域の光） | 光の位相を GHz で変える変調器＋分散ファイバ＋受光器 | 位相変調＝板、ファイバの分散＝回折（まさに時間領域の回折）、受光器＝検出 | 数〜数十 GHz（推定） | 1 層あたり変調器 1＋ファイバ 1 | RFSoC などで変調信号を作る | 部品は市販、組み上げは研究レベル | **最高速の候補**。「位置＝時間」の読み替えが光でそのまま成り立つ |
+| iPronics SmartLight（プログラマブル光チップ） | ソフトで組み替えられる光回路 | フィルタ・遅延線を光で | GHz 帯 | 1 チップ | 不明 | 出荷開始の報道あり、仕様は非公開 | 仕様が分かれば候補 |
+
+## おすすめの進め方（3 段階）
+1. **手軽な試作（Red Pitaya＋外付け部品）**: 1〜2 層の RF 版を組み、シミュレーションと同じ答えになるか、フィルタの較正がうまくいくかを確かめる。部品が少なく安い。
+2. **少部品・中速（AD9959×2＋ミキサー・LC 全域通過・検波器）**: 8 層の RF 版。帯域数十 MHz で、1 文字列 10〜30 µs（推定）。学習値は SPI で書き換えられるので、実機で順伝播して PC で勾配を計算する学習ループが回せる。
+3. **最高速（RFSoC＋光ファイバ・位相変調器）**: GHz 帯。研究レベルの組み上げが必要。
+並行して **OK2902A** は「1 チップ・超低消費電力」の原理実証として価値がある（速さではなく電力で勝負）。
+
+## 学習を速くするための共通の考え方
+- 学習する値が少なく（中構成で 517 個）、重み行列がないので、**実機で順伝播 → PC で勾配**（physics-aware training）、または**全値を同時に少し揺らして差分を見る（SPSA）**が現実的。
+- DDS（AD9959 など）や FPGA で発振信号を作る構成なら、値の書き換えはマイクロ秒単位で、実機での学習ループが速く回る。
+- どの構成でも、**実機のフィルタ特性を測って学習に使う較正**が必須（実験A01〜A03）。
+
+## 出典
+- Okika OK2902A: https://okikadevices.com/cdn/shop/files/OK2902A_SoC_Product_Data_Brief_v1.4.pdf
+- Aspinity AML100: https://www.cnx-software.com/2023/03/13/aspinity-ab2-aml100-arduino-shield-supports-ultra-low-power-analog-machine-learning/
+- THE ANALOG THING: https://en.wikipedia.org/wiki/The_Analog_Thing
+- LUCIDAC: https://qci.dlr.de/en/lucidac-anabrid-commercialises-technology-from-the-redac-analogue-computer-project/
+- AD9959: https://www.analog.com/en/products/ad9959
+- Red Pitaya STEMlab 125-14: https://redpitaya.readthedocs.io/en/latest/developerGuide/hardware/ORIG_GEN/125-14/top.html
+- RFSoC 4x2: https://www.amd.com/en/corporate/university-program/aup-boards/rfsoc4x2.html
+- Meadowlark SLM: https://findlight.net/optical-systems/adaptive-optics/spatial-light-modulators/meadowlark-spatial-light-modulator-1024-x-1024
+- SAW 遅延線の例（Qorvo、製造終了）: https://www.qorvo.com/products/p/856717
+- iPronics SmartLight: https://www.lightwaveonline.com/optical-tech/components/article/14289535/ipronics-shipping-smartlight-processor-reprogrammable-photonic-microchips
+- Anadigm AN231E04 の CAB 数は記憶による（未確認）。
