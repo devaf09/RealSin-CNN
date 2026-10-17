@@ -37,6 +37,8 @@ FPAA の Okika OK2902A（CAB 56 個）に 8 層が載る見込み（約 33〜42 
 | exp_a03_allpass.py, run_a03*.sh / result_a03*.txt | 板の間隔と、全域通過フィルタでの近似 |
 | DEVICE_SPEC.md | Sin-CNN2 1.3.0 向けの簡略化した仕様と、5 万円・10 万円前後のデバイス候補 |
 | exp_a04_simplify.py, run_a04.sh / result_a04_*.txt | 1.3.0 での簡略化（8 bit・表引き・短い畳み込み） |
+| concept/README.md, concept/images/ | 欲しい専用機の構想: 3 つの仕様（充実・低コスト・エッジ）と説明用の図（技術者向け） |
+| PUBLISHING.md | 公開前の確認リスト（ライセンス・載せてはいけない物） |
 | HARDWARE_SURVEY.md | 実装に使えそうな市販部品・モジュールの調査（FPAA、DDS、FPGA ボード、光） |
 
-実行: `python3 exp_a01_nonideal.py <Sin-CNN2 のフォルダ> mid 1500`（CPU のみ。Sin-CNN2 は import するだけで書き換えない）。
+実行: `python3 exp_a01_nonideal.py <Sin-CNN2 のフォルダ> mid 1500`、または `SIN_CNN2=<Sin-CNN2 のフォルダ> sh run_a01.sh`（CPU のみ。Sin-CNN2 は import するだけで書き換えない）。
