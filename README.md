@@ -42,3 +42,8 @@ FPAA の Okika OK2902A（CAB 56 個）に 8 層が載る見込み（約 33〜42 
 | HARDWARE_SURVEY.md | 実装に使えそうな市販部品・モジュールの調査（FPAA、DDS、FPGA ボード、光） |
 
 実行: `python3 exp_a01_nonideal.py <Sin-CNN2 のフォルダ> mid 1500`、または `SIN_CNN2=<Sin-CNN2 のフォルダ> sh run_a01.sh`（CPU のみ。Sin-CNN2 は import するだけで書き換えない）。
+
+## ライセンス
+- プログラム（`*.py`、`*.sh`）: [MIT](LICENSE)
+- 文書・図・実験結果の記録: [CC BY 4.0](LICENSE-docs.md)
+- Sin-CNN2（https://github.com/devaf09/Sin-CNN2 、MIT、同じ作者）は import して使います。実験スクリプトの一部（合成データの作り方、順伝播の再実装）は、Sin-CNN2 の `sinwave_minimal.py` をもとに書いています。
